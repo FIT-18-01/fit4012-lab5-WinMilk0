@@ -6,6 +6,7 @@
 #include <cstring>
 #include <fstream>
 #include <sstream>
+#include <vector>
 #include "structures.h"
 
 using namespace std;
@@ -145,85 +146,70 @@ int main() {
 	cout << "=============================" << endl;
 
 	// Read in the encrypted message from message.aes as binary
-	ifstream infile;
-	infile.open("message.aes", ios::in | ios::binary | ios::ate);
-
-	int messageLen = 0;
-	char * encryptedBuffer = nullptr;
-
-	if (infile.is_open())
-	{
-		messageLen = (int)infile.tellg();
-		infile.seekg(0, ios::beg);
-		encryptedBuffer = new char[messageLen];
-		infile.read(encryptedBuffer, messageLen);
-		infile.close();
-		cout << "Read in encrypted message from message.aes (" << messageLen << " bytes)" << endl;
-	}
-	else {
-		cout << "Unable to open file" << endl;
+	ifstream infile("message.aes", ios::in | ios::binary | ios::ate);
+	if (!infile.is_open()) {
+		cerr << "Unable to open message.aes" << endl;
 		return 1;
 	}
 
-	unsigned char * encryptedMessage = new unsigned char[messageLen];
-	for (int i = 0; i < messageLen; i++) {
-		encryptedMessage[i] = (unsigned char)encryptedBuffer[i];
+	int messageLen = static_cast<int>(infile.tellg());
+	if (messageLen <= 0 || (messageLen % 16) != 0) {
+		cerr << "Encrypted file length must be a positive multiple of 16 bytes" << endl;
+		return 1;
 	}
 
-	delete[] encryptedBuffer;
+	infile.seekg(0, ios::beg);
+	vector<unsigned char> encryptedMessage(messageLen);
+	infile.read(reinterpret_cast<char *>(encryptedMessage.data()), messageLen);
+	infile.close();
+	cout << "Read in encrypted message from message.aes (" << messageLen << " bytes)" << endl;
 
 	// Read in the key
 	string keystr;
-	ifstream keyfile;
-	keyfile.open("keyfile", ios::in | ios::binary);
-
-	if (keyfile.is_open())
-	{
-		getline(keyfile, keystr); // The first line of file should be the key
-		cout << "Read in the 128-bit key from keyfile" << endl;
-		keyfile.close();
-	}
-
-	else {
-		cout << "Unable to open keyfile" << endl;
-		delete[] encryptedMessage;
+	ifstream keyfile("keyfile", ios::in | ios::binary);
+	if (!keyfile.is_open()) {
+		cerr << "Unable to open keyfile" << endl;
 		return 1;
 	}
+	getline(keyfile, keystr);
+	keyfile.close();
+	cout << "Read in the 128-bit key from keyfile" << endl;
 
 	istringstream hex_chars_stream(keystr);
 	unsigned char key[16];
-	int i = 0;
+	int keyBytes = 0;
 	unsigned int c;
-	while (hex_chars_stream >> hex >> c)
-	{
-		key[i] = c;
-		i++;
+	while (hex_chars_stream >> hex >> c) {
+		if (keyBytes >= 16) {
+			break;
+		}
+		key[keyBytes++] = static_cast<unsigned char>(c);
+	}
+	if (keyBytes != 16) {
+		cerr << "Keyfile must contain 16 bytes of hex data" << endl;
+		return 1;
 	}
 
 	unsigned char expandedKey[176];
-
 	KeyExpansion(key, expandedKey);
 
-	unsigned char * decryptedMessage = new unsigned char[messageLen];
+	vector<unsigned char> decryptedMessage(messageLen);
 
 	for (int i = 0; i < messageLen; i += 16) {
-		AESDecrypt(encryptedMessage + i, expandedKey, decryptedMessage + i);
+		AESDecrypt(encryptedMessage.data() + i, expandedKey, decryptedMessage.data() + i);
 	}
 
 	cout << "Decrypted message in hex:" << endl;
 	for (int i = 0; i < messageLen; i++) {
-		cout << hex << (int)decryptedMessage[i];
+		cout << hex << static_cast<int>(decryptedMessage[i]);
 		cout << " ";
 	}
 	cout << endl;
 	cout << "Decrypted message: ";
 	for (int i = 0; i < messageLen; i++) {
-		cout << decryptedMessage[i];
+		cout << static_cast<char>(decryptedMessage[i]);
 	}
 	cout << endl;
-
-	delete[] encryptedMessage;
-	delete[] decryptedMessage;
 
 	return 0;
 }

@@ -71,7 +71,7 @@ printf "hello FIT4012 AES\n" | ./build/encrypt
 
 ## 3. Input / Đầu vào
 
-Chương trình mã hóa `encrypt.cpp` nhận plaintext từ bàn phím bằng `cin.getline(...)`.
+Chương trình mã hóa `encrypt.cpp` nhận plaintext từ bàn phím bằng `std::getline(cin, ...)`.
 
 Chương trình giải mã `decrypt.cpp` đọc ciphertext từ file `message.aes`.
 
