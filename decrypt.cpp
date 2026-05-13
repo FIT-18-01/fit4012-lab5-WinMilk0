@@ -144,33 +144,33 @@ int main() {
 	cout << " 128-bit AES Decryption Tool " << endl;
 	cout << "=============================" << endl;
 
-	// Read in the message from message.aes
-	string msgstr;
+	// Read in the encrypted message from message.aes as binary
 	ifstream infile;
-	infile.open("message.aes", ios::in | ios::binary);
+	infile.open("message.aes", ios::in | ios::binary | ios::ate);
+
+	int messageLen = 0;
+	char * encryptedBuffer = nullptr;
 
 	if (infile.is_open())
 	{
-		getline(infile, msgstr); // The first line of file is the message
-		cout << "Read in encrypted message from message.aes" << endl;
+		messageLen = (int)infile.tellg();
+		infile.seekg(0, ios::beg);
+		encryptedBuffer = new char[messageLen];
+		infile.read(encryptedBuffer, messageLen);
 		infile.close();
+		cout << "Read in encrypted message from message.aes (" << messageLen << " bytes)" << endl;
+	}
+	else {
+		cout << "Unable to open file" << endl;
+		return 1;
 	}
 
-	else cout << "Unable to open file";
-
-	char * msg = new char[msgstr.size()+1];
-
-	strcpy(msg, msgstr.c_str());
-
-	int n = strlen((const char*)msg);
-
-	unsigned char * encryptedMessage = new unsigned char[n];
-	for (int i = 0; i < n; i++) {
-		encryptedMessage[i] = (unsigned char)msg[i];
+	unsigned char * encryptedMessage = new unsigned char[messageLen];
+	for (int i = 0; i < messageLen; i++) {
+		encryptedMessage[i] = (unsigned char)encryptedBuffer[i];
 	}
 
-	// Free memory
-	delete[] msg;
+	delete[] encryptedBuffer;
 
 	// Read in the key
 	string keystr;
@@ -184,7 +184,11 @@ int main() {
 		keyfile.close();
 	}
 
-	else cout << "Unable to open file";
+	else {
+		cout << "Unable to open keyfile" << endl;
+		delete[] encryptedMessage;
+		return 1;
+	}
 
 	istringstream hex_chars_stream(keystr);
 	unsigned char key[16];
@@ -199,8 +203,6 @@ int main() {
 	unsigned char expandedKey[176];
 
 	KeyExpansion(key, expandedKey);
-	
-	int messageLen = strlen((const char *)encryptedMessage);
 
 	unsigned char * decryptedMessage = new unsigned char[messageLen];
 
@@ -219,6 +221,9 @@ int main() {
 		cout << decryptedMessage[i];
 	}
 	cout << endl;
+
+	delete[] encryptedMessage;
+	delete[] decryptedMessage;
 
 	return 0;
 }
